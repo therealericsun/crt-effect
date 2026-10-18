@@ -1,0 +1,39 @@
+{
+  "name": "crt-effect",
+  "version": "1.0.0",
+  "description": "Dependency-free CRT curvature and texture for live HTML and canvas.",
+  "type": "module",
+  "main": "./dist/crt-effect.js",
+  "types": "./dist/crt-effect.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/crt-effect.d.ts",
+      "import": "./dist/crt-effect.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/geometry.test.mjs",
+    "test:browser": "playwright test",
+    "demo": "node scripts/serve.mjs",
+    "prepack": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/therealericsun/crt-effect.git"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "pngjs": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

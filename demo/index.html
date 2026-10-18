@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CRT effect — live browser demo</title>
+  <style>
+    :root{color-scheme:dark;font:15px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;background:#0a1011;color:#cbdccf}
+    *{box-sizing:border-box}body{margin:0;padding:clamp(24px,6vw,80px)}main{max-width:1100px;margin:auto}
+    header{border-top:1px solid #779987;padding:20px 0 36px}h1{font-size:clamp(32px,6vw,68px);line-height:1.1;margin:12px 0;color:#e4f5db;letter-spacing:-.05em}h2{font-size:16px;color:#a5c397}
+    p{max-width:68ch}a{color:#e5d7ac}button,input{font:inherit}button{background:#20362b;color:#e4f5db;border:1px solid #779987;padding:5px 14px;cursor:pointer}
+    .grid{display:grid;grid-template-columns:1.3fr 1fr;gap:36px}section,aside{border:1px solid #53665b;padding:24px}canvas{display:block;width:100%;height:260px;background:#080d0c}
+    .eyebrow{font-size:12px;letter-spacing:.16em;color:#a5c397}.controls{display:grid;gap:12px}label{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center}input[type=range]{width:100%;accent-color:#a5c397}input[type=checkbox]{justify-self:start}
+    .small{font-size:11px;color:#a5b5aa}.calibration{margin-top:36px;min-height:500px;background:repeating-linear-gradient(0deg,transparent 0 39px,#45614a55 40px),repeating-linear-gradient(90deg,transparent 0 39px,#45614a55 40px);padding:24px;border:1px solid #779987}
+    footer{padding:40px 0}.status{font-size:12px;color:#a5c397}a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #ffe7a0;outline-offset:4px}
+    @media(max-width:700px){.grid{grid-template-columns:1fr}body{padding:24px}section,aside{padding:18px}}
+  </style>
+</head>
+<body>
+<main>
+  <header><span class="eyebrow">LIVE HTML · CANVAS · NATIVE CONTROLS</span><h1>A softer signal.</h1><p>Curved glass, fine scanlines, a quiet phosphor mask, and a little noise. This page is live HTML: select this text, follow a link, or edit the controls.</p><a href="#calibration">Scroll to the calibration grid ↓</a></header>
+  <div class="grid">
+    <section><h2>01 / Oscilloscope</h2><canvas id="signal" aria-label="Animated sine wave oscilloscope"></canvas><p class="small">11px text remains readable. The geometry bends the drawing, the borders, and this paragraph together.</p><p class="status" id="status" aria-live="polite">Balanced preset · enabled</p></section>
+    <aside data-crt-protect aria-label="CRT controls"><h2>02 / Adjust the glass</h2><div class="controls">
+      <label>CRT effect <input id="enabled" type="checkbox" checked></label>
+      <label>Curvature <input id="curvature" type="range" min="0" max="0.15" step="0.005" value="0.035"></label>
+      <label>Grain <input id="grain" type="range" min="0" max="0.10" step="0.005" value="0.025"></label>
+      <label>Scanlines <input id="scanlines" type="range" min="0" max="0.3" step="0.01" value="0.10"></label>
+      <label>Vertical mask <input id="mask" type="range" min="0" max="0.15" step="0.005" value="0.025"></label>
+      <label>Vignette <input id="vignette" type="range" min="0" max="1" step="0.05" value="0.45"></label>
+      <label>Glow <input id="glow" type="range" min="0" max="0.4" step="0.01" value="0.08"></label>
+      <button id="lifecycle" type="button">Destroy effect</button>
+    </div><p class="small">This region is protected from displacement, keeping native pointer targets aligned. Keyboard navigation and native scrolling stay available.</p></aside>
+  </div>
+  <section class="calibration" id="calibration"><h2>03 / Geometry check</h2><p>The straight grid lines curve toward the screen edges. Scroll and resize to keep the glass centered in the viewport.</p><p>Text is selectable. <a href="https://github.com/therealericsun/crt-effect">View the source on GitHub ↗</a></p></section>
+  <footer class="small">crt-effect / dependency-free ES module / MIT</footer>
+</main>
+<script type="module">
+  import { createCRT, balanced } from '../dist/crt-effect.js';
+  let crt = createCRT(document.documentElement);
+  // Expose the instance for experiments in the demo's developer console.
+  window.crt = crt;
+  const enabled = document.querySelector('#enabled'), lifecycle = document.querySelector('#lifecycle');
+  const status = document.querySelector('#status');
+  enabled.addEventListener('change', () => { crt?.setEnabled(enabled.checked); status.textContent = `Effect ${enabled.checked ? 'enabled' : 'disabled'}`; });
+  for (const key of ['curvature', 'grain', 'scanlines', 'mask', 'vignette', 'glow']) {
+    document.getElementById(key).addEventListener('input', event => crt?.update({ [key]: Number(event.target.value) }));
+  }
+  lifecycle.addEventListener('click', () => {
+    if (crt) {
+      crt.destroy(); crt = null; window.crt = null;
+      lifecycle.textContent = 'Recreate effect'; status.textContent = 'Effect destroyed · original styles restored';
+    } else {
+      for (const key of ['curvature', 'grain', 'scanlines', 'mask', 'vignette', 'glow']) document.getElementById(key).value = balanced[key];
+      crt = createCRT(document.documentElement, { enabled: enabled.checked }); window.crt = crt;
+      lifecycle.textContent = 'Destroy effect'; status.textContent = 'Balanced preset restored';
+    }
+  });
+  const canvas = document.querySelector('#signal'), ctx = canvas.getContext('2d');
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  let animation = 0;
+  function draw(time = 0) {
+    const rect = canvas.getBoundingClientRect(), density = Math.min(devicePixelRatio, 2);
+    const width = Math.round(rect.width * density), height = Math.round(rect.height * density);
+    if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+    ctx.setTransform(density, 0, 0, density, 0, 0); ctx.clearRect(0, 0, rect.width, rect.height);
+    ctx.strokeStyle = '#314a3d'; ctx.lineWidth = .5;
+    ctx.beginPath();
+    for (let x = 0; x < rect.width; x += 26) { ctx.moveTo(x, 0); ctx.lineTo(x, rect.height); }
+    for (let y = 0; y < rect.height; y += 26) { ctx.moveTo(0, y); ctx.lineTo(rect.width, y); }
+    ctx.stroke(); ctx.strokeStyle = '#b5d39c'; ctx.lineWidth = 1.5; ctx.beginPath();
+    for (let x = 0; x < rect.width; x++) {
+      const y = rect.height / 2 + Math.sin(x / 30 - time / 700) * Math.sin(x / 180 + time / 2100) * 80;
+      if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke(); animation = !motion.matches && !document.hidden ? requestAnimationFrame(draw) : 0;
+  }
+  function resume() { cancelAnimationFrame(animation); if (!document.hidden) draw(); }
+  document.addEventListener('visibilitychange', resume); motion.addEventListener('change', resume); window.addEventListener('resize', resume); draw();
+</script>
+</body>
+</html>
