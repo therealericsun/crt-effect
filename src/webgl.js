@@ -243,7 +243,7 @@ export function createWebGLCRT(target, options = {}) {
     get renderer() { return renderer; }, get contextLost() { return lost; },
     get enabled() { return !destroyed && settings.enabled; },
     get options() { return Object.freeze({ ...settings }); },
-    render() { render(true); }, refresh: schedule,
+    render(upload = true) { render(upload); }, refresh: schedule,
     update(patch = {}) { if (!destroyed) { settings = normalize(settings, patch, target); apply(); } },
     setEnabled(enabled) { api.update({ enabled }); },
     destroy() {

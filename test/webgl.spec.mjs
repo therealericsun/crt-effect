@@ -127,3 +127,30 @@ test('oversized source canvases fit the GPU texture limit', async ({ page }) => 
   await page.evaluate(() => window.gpu.destroy());
   expect(await page.locator('#source').evaluate(el => getComputedStyle(el).opacity)).toBe('1');
 });
+
+test('layout-only renders move cached pixels without uploading unchanged sources', async ({ page }) => {
+  await setup(page);
+  await page.waitForTimeout(50);
+  const result = await page.evaluate(() => {
+    const source = document.querySelector('#source');
+    const output = document.querySelector('canvas[data-crt-renderer]'), gl = output.getContext(window.gpu.renderer);
+    let uploads = 0;
+    for (const name of ['texImage2D', 'texSubImage2D']) {
+      const original = gl[name];
+      gl[name] = function(...args) { uploads++; return original.apply(this, args); };
+    }
+    source.style.top = '20px'; window.gpu.render(false);
+    const program = gl.getParameter(gl.CURRENT_PROGRAM);
+    return { uploads, y:gl.getUniform(program, gl.getUniformLocation(program, 'uRect0'))[1], error:gl.getError() };
+  });
+  expect(result).toEqual({ uploads:0, y:20, error:0 });
+  const dpr = await page.evaluate(() => devicePixelRatio), width = page.viewportSize().width;
+  expect(line(PNG.sync.read(await page.screenshot()), width / 2, dpr)).toBeGreaterThan(75);
+  await page.evaluate(() => {
+    const source = document.querySelector('#source'), ctx = source.getContext('2d');
+    ctx.fillStyle = '#f00'; ctx.fillRect(0, 60, source.width, 3); window.gpu.render();
+  });
+  const updated = PNG.sync.read(await page.screenshot());
+  const i = (Math.round(81 * dpr) * updated.width + Math.round(width / 2 * dpr)) * 4;
+  expect(updated.data[i]).toBeGreaterThan(200); expect(updated.data[i + 1]).toBeLessThan(30);
+});

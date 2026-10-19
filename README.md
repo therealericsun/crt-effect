@@ -34,7 +34,7 @@ const gpu = createWebGLCRT(screen, {
   aperture: true,                           // optional shared screen mask
 });
 // After drawing your canvases:
-gpu.render();
+gpu.render(); // Use render(false) after moving unchanged sources to reuse GPU textures.
 ```
 
 WebGL 2 falls back to WebGL 1. Source canvases remain available for native interaction; disabling, context loss or teardown restores their visibility. Output defaults to at most 2× density and 3 million pixels (`pixelRatio`, `maxPixels`). `renderer` and `contextLost` expose status. `sources`, resolution and aperture are construction options.

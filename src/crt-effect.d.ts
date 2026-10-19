@@ -49,7 +49,7 @@ export interface WebGLCRTOptions extends CRTOptions {
 export interface WebGLCRTInstance extends CRTInstance {
   readonly renderer: 'webgl2' | 'webgl';
   readonly contextLost: boolean;
-  /** Upload source canvases after drawing, then run the GPU postprocessing pass. */
-  render(): void;
+  /** Upload source canvases and draw. Pass false to reuse textures after layout-only changes. */
+  render(upload?: boolean): void;
 }
 export declare function createWebGLCRT(target: HTMLElement, options?: WebGLCRTOptions): WebGLCRTInstance;

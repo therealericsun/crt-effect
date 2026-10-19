@@ -1,4 +1,4 @@
-// crt-effect v1.1.1 | MIT | https://github.com/therealericsun/crt-effect
+// crt-effect v1.1.2 | MIT | https://github.com/therealericsun/crt-effect
 /** Independent cross-axis barrel sampling, in viewport CSS pixels. */
 function displacement(x, y, width, height, curvature, regions = [], padding = 6, feather = 24) {
   const u = x / width * 2 - 1, v = y / height * 2 - 1;
@@ -187,7 +187,7 @@ export function createCRT(target, options = {}) {
     Object.assign(overlay.style, { left: `${paintedBounds.left}px`, top: `${paintedBounds.top}px`, width: `${paintedBounds.width}px`, height: `${paintedBounds.height}px` });
     const custom = settings.protect ? [...target.querySelectorAll(settings.protect)] : [];
     if (settings.protect && target.matches(settings.protect)) custom.unshift(target);
-    const controls = [...target.querySelectorAll(`[data-crt-align],${nativeControls}`)].filter(el => !generated(el)
+    const controls = (settings.alignControls ? [...target.querySelectorAll(`[data-crt-align],${nativeControls}`)] : []).filter(el => !generated(el)
       && !custom.some(parent => parent === el || parent.contains(el)))
       .filter((el, _, all) => !all.some(parent => parent !== el && parent.contains(el)));
     // Only explicit protected regions flatten the map. Native controls are aligned
@@ -592,7 +592,7 @@ export function createWebGLCRT(target, options = {}) {
     get renderer() { return renderer; }, get contextLost() { return lost; },
     get enabled() { return !destroyed && settings.enabled; },
     get options() { return Object.freeze({ ...settings }); },
-    render() { render(true); }, refresh: schedule,
+    render(upload = true) { render(upload); }, refresh: schedule,
     update(patch = {}) { if (!destroyed) { settings = normalize(settings, patch, target); apply(); } },
     setEnabled(enabled) { api.update({ enabled }); },
     destroy() {

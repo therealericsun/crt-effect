@@ -173,7 +173,7 @@ export function createCRT(target, options = {}) {
     Object.assign(overlay.style, { left: `${paintedBounds.left}px`, top: `${paintedBounds.top}px`, width: `${paintedBounds.width}px`, height: `${paintedBounds.height}px` });
     const custom = settings.protect ? [...target.querySelectorAll(settings.protect)] : [];
     if (settings.protect && target.matches(settings.protect)) custom.unshift(target);
-    const controls = [...target.querySelectorAll(`[data-crt-align],${nativeControls}`)].filter(el => !generated(el)
+    const controls = (settings.alignControls ? [...target.querySelectorAll(`[data-crt-align],${nativeControls}`)] : []).filter(el => !generated(el)
       && !custom.some(parent => parent === el || parent.contains(el)))
       .filter((el, _, all) => !all.some(parent => parent !== el && parent.contains(el)));
     // Only explicit protected regions flatten the map. Native controls are aligned
