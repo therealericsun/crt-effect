@@ -6,7 +6,7 @@ Dependency-free CRT effects for live HTML and canvas: curvature, grain, scanline
 
 ![Earthrise before (top) and after CRT (bottom)](docs/images/analog-comparison.jpg)
 
-**Broadcast test card** — grain `.06`, phosphor mask `.15`.
+**Broadcast test card** — curvature `.10`, phosphor mask `.35`, no scanlines.
 
 ![Broadcast card before (top) and after CRT (bottom)](docs/images/broadcast-comparison.jpg)
 
@@ -45,7 +45,7 @@ const gpu = createWebGLCRT(screen, {
 gpu.render(); // Use render(false) after moving unchanged sources to reuse GPU textures.
 ```
 
-Grain, scanlines, mask and vignette share an overlay above canvas and HTML; keep native panels below its `z-index: 8`.
+Grain, scanlines, mask and vignette share an overlay above canvas and HTML; keep native panels below its `z-index: 8`. The phosphor mask follows the screen’s curvature and shared viewport; its texture is cached between geometry changes.
 
 WebGL 2 falls back to WebGL 1. Source canvases remain available for native interaction; disabling, context loss or teardown restores their visibility. Output defaults to at most 2× density and 3 million pixels (`pixelRatio`, `maxPixels`). `renderer` and `contextLost` expose status. `sources`, resolution and aperture are construction options.
 

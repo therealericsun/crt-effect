@@ -102,7 +102,7 @@ export function createWebGLCRT(target, options = {}) {
   const scan = doc.createElement('div'), mask = doc.createElement('div'), grain = doc.createElement('div'), shade = doc.createElement('div');
   for (const el of [scan, mask, grain, shade]) el.style.cssText = 'position:absolute;inset:0;pointer-events:none!important';
   overlay.append(scan, mask, grain, shade);
-  mask.style.background = 'repeating-linear-gradient(90deg,#f004 0px,#0f02 1px,#00f4 2px,transparent 3px)';
+  const phosphor = createPhosphorMask(doc, mask);
   shade.style.background = 'radial-gradient(ellipse at center,transparent 35%,#0005 75%,#000 100%)';
   grain.dataset.crtGrain = '';
   scan.dataset.crtScanlines = '';
@@ -186,6 +186,7 @@ export function createWebGLCRT(target, options = {}) {
     output.style.display = overlay.style.display = 'block';
     if (bezel) bezel.style.display = 'block';
     updateAperture(bounds);
+    if (settings.mask) phosphor.paint(width, height, settings.curvature);
     const density = Math.min(pixelRatio, Math.sqrt(maxPixels / (width * height)), maxTextureSize / Math.max(width, height));
     const w = Math.max(1, Math.round(width * density)), h = Math.max(1, Math.round(height * density));
     if (output.width !== w || output.height !== h) { output.width = w; output.height = h; }
@@ -268,7 +269,7 @@ export function createWebGLCRT(target, options = {}) {
     destroy() {
       if (destroyed) return;
       destroyed = true; win.cancelAnimationFrame(frame); win.clearTimeout(timer); observer.disconnect(); removers.forEach(remove => remove());
-      restoreSources(); release(); noiseFrames.length = 0; output.remove(); overlay.remove(); bezel?.remove(); output.width = output.height = 1;
+      restoreSources(); release(); phosphor.destroy(); noiseFrames.length = 0; output.remove(); overlay.remove(); bezel?.remove(); output.width = output.height = 1;
       gl.getExtension('WEBGL_lose_context')?.loseContext();
       instances.delete(target);
     },

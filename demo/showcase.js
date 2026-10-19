@@ -2,9 +2,9 @@ import { createWebGLCRT } from '../dist/crt-effect.js';
 
 // These are example overrides, not additional library presets.
 const examples = {
-  analog: { options: { curvature:.09,grain:.075,scanlines:.36,scanlineSpacing:4,mask:.12,vignette:.65,glow:.18 }, draw:earthrise },
-  broadcast: { options: { curvature:.07,grain:.06,scanlines:.32,scanlineSpacing:4,mask:.15,vignette:.45,glow:.12 }, draw:broadcast },
-  arcade: { options: { curvature:.12,grain:.05,scanlines:.50,scanlineSpacing:4,mask:.20,vignette:.65,glow:.35 }, draw:arcade },
+  analog: { options: { curvature:.09,grain:.075,scanlines:.36,scanlineSpacing:4,mask:.20,vignette:.65,glow:.18 }, draw:earthrise },
+  broadcast: { options: { curvature:.10,grain:.045,scanlines:0,scanlineSpacing:4,mask:.35,vignette:.45,glow:.12 }, draw:broadcast },
+  arcade: { options: { curvature:.12,grain:.05,scanlines:.50,scanlineSpacing:4,mask:.30,vignette:.65,glow:.35 }, draw:arcade },
   terminal: { options: { curvature:.085,grain:.10,scanlines:.42,scanlineSpacing:3,mask:0,vignette:.65,glow:.45 }, draw:terminal },
 };
 const screen = document.querySelector('#screen'), canvas = document.querySelector('#source');

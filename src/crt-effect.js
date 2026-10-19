@@ -1,4 +1,5 @@
 import { displacement } from './geometry.js';
+import { createPhosphorMask } from './phosphor.js';
 
 export const balanced = Object.freeze({
   preset: 'balanced', enabled: true, curvature: .035, grain: .025, grainFPS: 12,
@@ -79,7 +80,7 @@ export function createCRT(target, options = {}) {
     return el;
   };
   const scanlines = layer(), mask = layer(), grain = layer(), vignette = layer();
-  mask.style.background = 'repeating-linear-gradient(90deg,#f004 0px,#0f02 1px,#00f4 2px,transparent 3px)';
+  const phosphor = createPhosphorMask(doc, mask);
   grain.style.backgroundSize = '128px 128px';
   vignette.style.background = 'radial-gradient(ellipse at center,transparent 35%,#0005 75%,#000 100%)';
   (doc.body || doc.documentElement).append(defsHost, overlay);
@@ -170,6 +171,9 @@ export function createCRT(target, options = {}) {
     const { width, height } = bounds;
     if (!width || !height) { overlay.style.display = 'none'; return; }
     overlay.style.display = 'block';
+    // A root SVG filter already samples its overlay; avoid a second warp.
+    const rootSamplesOverlay = root && !/Firefox\//.test(win.navigator.userAgent);
+    if (settings.mask) phosphor.paint(width, height, rootSamplesOverlay ? 0 : settings.curvature, reference.width, reference.height, offsetX, offsetY);
     Object.assign(overlay.style, { left: `${paintedBounds.left}px`, top: `${paintedBounds.top}px`, width: `${paintedBounds.width}px`, height: `${paintedBounds.height}px` });
     const custom = settings.protect ? [...target.querySelectorAll(settings.protect)] : [];
     if (settings.protect && target.matches(settings.protect)) custom.unshift(target);
@@ -319,6 +323,7 @@ export function createCRT(target, options = {}) {
       cleanups.forEach(remove => remove());
       restoreFilter();
       clearControls();
+      phosphor.destroy();
       overlay.remove();
       defsHost.remove();
       instances.delete(target);

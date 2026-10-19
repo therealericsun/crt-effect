@@ -106,7 +106,7 @@ test('resize, protected transitions, option validation, repeated toggle and full
 
 test('grain freezes for reduced motion and hidden documents; disabled instances remain quiet', async ({ page }) => {
   await page.goto('/');
-  expect(await page.locator('[data-crt-generated] > div').nth(1).evaluate(el => getComputedStyle(el).backgroundImage)).toContain('linear-gradient');
+  expect(await page.locator('[data-crt-mask-pattern]').evaluate(el => el.width)).toBeGreaterThan(0);
   const noise = page.locator('[data-crt-generated] > div').nth(2);
   const first = await noise.getAttribute('style');
   await expect.poll(() => noise.getAttribute('style')).not.toBe(first);
