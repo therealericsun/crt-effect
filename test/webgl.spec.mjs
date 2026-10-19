@@ -168,11 +168,12 @@ test('one texture overlay covers opaque native panels and grain respects motion 
     panel.onclick = () => panel.dataset.clicked = 'true'; document.querySelector('#surface').append(panel);
     window.gpu.update({ grain:.5, scanlines:.4 });
   });
-  const capture = PNG.sync.read(await presentedFrame(page));
   const dpr = await page.evaluate(() => devicePixelRatio), x = page.viewportSize().width * .4 + 10;
-  const values = new Set();
-  for (let y = 170; y < 185; y++) for (let dx = 0; dx < 20; dx++) values.add(capture.data[(Math.round(y * dpr) * capture.width + Math.round((x + dx) * dpr)) * 4]);
-  expect(values.size).toBeGreaterThan(20);
+  await expect.poll(async () => {
+    const capture = PNG.sync.read(await presentedFrame(page)), values = new Set();
+    for (let y = 170; y < 185; y++) for (let dx = 0; dx < 20; dx++) values.add(capture.data[(Math.round(y * dpr) * capture.width + Math.round((x + dx) * dpr)) * 4]);
+    return values.size;
+  }).toBeGreaterThan(20);
   await page.locator('#native-panel').click(); await expect(page.locator('#native-panel')).toHaveAttribute('data-clicked', 'true');
   const grain = page.locator('[data-crt-grain]');
   const position = await grain.evaluate(e => e.style.backgroundPosition);
@@ -199,4 +200,19 @@ test('showcase pairs identical sources with stronger CRT examples and a working 
     await expect(page.locator('[data-crt-generated="webgl-overlay"]')).toBeHidden();
     expect(await page.locator('#source').evaluate(e => getComputedStyle(e).opacity)).toBe('1');
   }
+});
+
+
+test('WebKitGTK keeps the newest draw available instead of presenting a stale buffer', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'userAgent', { get:()=> 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 Version/27.2 Safari/605.1.15' }));
+  await setup(page);
+  expect(await page.evaluate(() => document.querySelector('canvas[data-crt-renderer]').getContext(window.gpu.renderer).getContextAttributes().preserveDrawingBuffer)).toBe(true);
+  await page.evaluate(() => {
+    const canvas = document.querySelector('#source'), ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#f00'; ctx.fillRect(0, 90, canvas.width, 3); window.gpu.render();
+  });
+  const dpr = await page.evaluate(() => devicePixelRatio), pixels = PNG.sync.read(await presentedFrame(page));
+  const i = (Math.round(91 * dpr) * pixels.width + Math.round(page.viewportSize().width / 2 * dpr)) * 4;
+  expect(pixels.data[i]).toBeGreaterThan(200); expect(pixels.data[i + 1]).toBeLessThan(30);
 });

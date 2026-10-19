@@ -49,7 +49,11 @@ export function createWebGLCRT(target, options = {}) {
   if (instances.has(target)) throw new Error('This element already has a CRT instance.');
   let settings = normalize(balanced, core, target);
   const output = doc.createElement('canvas');
-  const attributes = { alpha: true, antialias: false, depth: false, stencil: false, premultipliedAlpha: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' };
+  // WebKitGTK's non-DMABUF path otherwise presents the previous draw forever.
+  // https://bugs.webkit.org/show_bug.cgi?id=324549
+  const ua = win.navigator.userAgent;
+  const webkitGTK = /Linux/.test(ua) && /AppleWebKit\//.test(ua) && !/(Chrome|Chromium|Edg|OPR)\//.test(ua);
+  const attributes = { alpha: true, antialias: false, depth: false, stencil: false, premultipliedAlpha: true, preserveDrawingBuffer: webkitGTK, powerPreference: 'high-performance' };
   // GLSL ES 1.00 works in WebGL 1 and is converted below for WebGL 2.
   let gl = output.getContext('webgl2', attributes), renderer = 'webgl2';
   if (!gl) { gl = output.getContext('webgl', attributes); renderer = 'webgl'; }

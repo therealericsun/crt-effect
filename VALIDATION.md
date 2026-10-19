@@ -16,3 +16,5 @@ The portfolio integration separately checks the GPU pass, desktop/mobile layout,
 Safari 26.5 was inspected directly. Initial maps and a first GPU frame must be prepared even in hidden windows; automatic animation remains suspended. Twelve added checks cover this initialization path. Primitive bounds are assigned before the displacement image loads.
 
 Four generic showcase scenes and their enable/disable controls were checked in all three engines. The portfolio’s ad-block false match was reproduced using EasyList’s `div[id^="crt-"][style]` rule; integrations should avoid those IDs.
+
+Linux CI uses Xvfb and Mesa software rendering. WebKitGTK retains its drawing buffer to avoid [stale frames in its non-DMABUF path](https://bugs.webkit.org/show_bug.cgi?id=324549).
