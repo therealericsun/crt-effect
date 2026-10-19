@@ -17,4 +17,4 @@ Safari 26.5 was inspected directly. Initial maps and a first GPU frame must be p
 
 Four generic showcase scenes and their enable/disable controls were checked in all three engines. The portfolio’s ad-block false match was reproduced using EasyList’s `div[id^="crt-"][style]` rule; integrations should avoid those IDs.
 
-Linux CI uses Xvfb and Mesa software rendering. WebKitGTK retains its drawing buffer to avoid [stale frames in its non-DMABUF path](https://bugs.webkit.org/show_bug.cgi?id=324549).
+Linux CI uses Xvfb and Mesa software rendering. WebKitGTK is detected using the platform as well as the user agent and retains its drawing buffer to avoid [stale frames in its non-DMABUF path](https://bugs.webkit.org/show_bug.cgi?id=324549).

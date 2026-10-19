@@ -204,7 +204,11 @@ test('showcase pairs identical sources with stronger CRT examples and a working 
 
 
 test('WebKitGTK keeps the newest draw available instead of presenting a stale buffer', async ({ page }) => {
-  await page.addInitScript(() => Object.defineProperty(navigator, 'userAgent', { get:()=> 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 Version/27.2 Safari/605.1.15' }));
+  await page.addInitScript(() => {
+    // Playwright reports Safari's Mac user agent even on its Linux runner.
+    Object.defineProperty(navigator, 'userAgent', { get:()=> 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/27.2 Safari/605.1.15' });
+    Object.defineProperty(navigator, 'platform', { get:()=> 'Linux x86_64' });
+  });
   await setup(page);
   expect(await page.evaluate(() => document.querySelector('canvas[data-crt-renderer]').getContext(window.gpu.renderer).getContextAttributes().preserveDrawingBuffer)).toBe(true);
   await page.evaluate(() => {
