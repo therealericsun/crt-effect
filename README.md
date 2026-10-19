@@ -2,13 +2,21 @@
 
 Dependency-free CRT effects for live HTML and canvas: curvature, grain, scanlines, phosphor masking, vignette and glow. ES modules and TypeScript declarations ship in `dist/`.
 
-| Balanced · Earthrise | Soft · broadcast |
-| --- | --- |
-| ![Balanced CRT on NASA Earthrise](docs/images/balanced.jpg) | ![Soft CRT on a broadcast test card](docs/images/soft.jpg) |
-| Default balanced preset | Curvature `.015`, scanlines `.045`, glow `.035` |
-| **Arcade · vector game** | **Terminal · oscilloscope** |
-| ![Arcade CRT on an original vector game scene](docs/images/arcade.jpg) | ![Green oscilloscope with CRT texture](docs/images/terminal.jpg) |
-| Curvature `.065`, scanlines `.24`, glow `.16` | Curvature `.045`, grain `.045`, glow `.20` |
+**Analog · Earthrise** — curvature `.09`, scanlines `.36`.
+
+![Earthrise before (top) and after CRT (bottom)](docs/images/analog-comparison.jpg)
+
+**Broadcast test card** — grain `.06`, phosphor mask `.15`.
+
+![Broadcast card before (top) and after CRT (bottom)](docs/images/broadcast-comparison.jpg)
+
+**Arcade · vector game** — curvature `.12`, scanlines `.50`, glow `.35`.
+
+![Vector game before (top) and after CRT (bottom)](docs/images/arcade-comparison.jpg)
+
+**Terminal · oscilloscope** — grain `.10`, scanlines `.42`, glow `.45`.
+
+![Oscilloscope before (top) and after CRT (bottom)](docs/images/terminal-comparison.jpg)
 
 [Showcase](demo/showcase.html) · [full settings](demo/showcase.js). Earthrise: [NASA/Bill Anders](https://science.nasa.gov/resource/apollo-8s-iconic-earthrise/). Other scenes are original Canvas drawings.
 
@@ -36,6 +44,8 @@ const gpu = createWebGLCRT(screen, {
 // After drawing your canvases:
 gpu.render(); // Use render(false) after moving unchanged sources to reuse GPU textures.
 ```
+
+Grain, scanlines, mask and vignette share an overlay above canvas and HTML; keep native panels below its `z-index: 8`.
 
 WebGL 2 falls back to WebGL 1. Source canvases remain available for native interaction; disabling, context loss or teardown restores their visibility. Output defaults to at most 2× density and 3 million pixels (`pixelRatio`, `maxPixels`). `renderer` and `contextLost` expose status. `sources`, resolution and aperture are construction options.
 

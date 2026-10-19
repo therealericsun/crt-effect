@@ -17,6 +17,11 @@ async function setup(page, webgl1 = false) {
       aperture: true, grain: 0, scanlines: 0, mask: 0, vignette: 0, glow: 0, maxPixels: 1000000 });
   });
 }
+async function presentedFrame(page) {
+  // WebKitGTK can present the previous GPU buffer until the next compositor frame.
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  return page.screenshot();
+}
 function line(png, x, dpr) {
   const rows = [];
   for (let y = 40 * dpr; y < 100 * dpr; y++) {
@@ -33,14 +38,14 @@ test('WebGL shaders curve actual source pixels and upload changed canvas content
     pixels: document.querySelector('canvas[data-crt-renderer]').width * document.querySelector('canvas[data-crt-renderer]').height }));
   expect(result.renderer).toMatch(/^webgl2?$/); expect(result.error).toBe(0); expect(result.pixels).toBeLessThanOrEqual(1002000);
   const dpr = await page.evaluate(() => devicePixelRatio), width = page.viewportSize().width;
-  const screenshot = PNG.sync.read(await page.screenshot());
+  const screenshot = PNG.sync.read(await presentedFrame(page));
   expect(line(screenshot, width * .08, dpr) - line(screenshot, width / 2, dpr)).toBeGreaterThan(7);
   await page.evaluate(() => {
     const canvas = document.querySelector('#source'), ctx = canvas.getContext('2d');
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#f00'; ctx.fillRect(0, 90, canvas.width, 3);
     window.gpu.update({ curvature: 0 }); window.gpu.render();
   });
-  const updated = PNG.sync.read(await page.screenshot());
+  const updated = PNG.sync.read(await presentedFrame(page));
   const i = (Math.round(91 * dpr) * updated.width + Math.round(width / 2 * dpr)) * 4;
   expect(updated.data[i]).toBeGreaterThan(200); expect(updated.data[i + 1]).toBeLessThan(30);
 });
@@ -79,7 +84,7 @@ test('hidden-tab initialization renders an initial GPU frame without starting an
   await setup(page);
   const result=await page.evaluate(()=>({width:document.querySelector('canvas[data-crt-renderer]').width,error:document.querySelector('canvas[data-crt-renderer]').getContext(window.gpu.renderer).getError()}));
   expect(result.width).toBeGreaterThan(300); expect(result.error).toBe(0);
-  const dpr=await page.evaluate(()=>devicePixelRatio),width=page.viewportSize().width,pixels=PNG.sync.read(await page.screenshot());
+  const dpr=await page.evaluate(()=>devicePixelRatio),width=page.viewportSize().width,pixels=PNG.sync.read(await presentedFrame(page));
   expect(line(pixels,width*.08,dpr)-line(pixels,width/2,dpr)).toBeGreaterThan(7);
   await page.evaluate(()=>window.gpu.destroy());
 });
@@ -87,17 +92,17 @@ test('hidden-tab initialization renders an initial GPU frame without starting an
 test('GPU sources follow inherited visibility without hiding the output layer', async ({ page }) => {
   await setup(page);
   const dpr = await page.evaluate(() => devicePixelRatio), width = page.viewportSize().width;
-  expect(line(PNG.sync.read(await page.screenshot()), width / 2, dpr)).toBeGreaterThan(40);
+  expect(line(PNG.sync.read(await presentedFrame(page)), width / 2, dpr)).toBeGreaterThan(40);
   await page.evaluate(() => {
     const source = document.querySelector('#source'), wrapper = document.createElement('div');
     source.before(wrapper); wrapper.append(source); wrapper.id = 'source-wrapper';
     wrapper.style.visibility = 'hidden'; window.gpu.render();
   });
-  const hidden = PNG.sync.read(await page.screenshot());
+  const hidden = PNG.sync.read(await presentedFrame(page));
   const i = (Math.round(61 * dpr) * hidden.width + Math.round(width / 2 * dpr)) * 4;
   expect(Math.max(...hidden.data.subarray(i, i + 3))).toBeLessThan(20);
   await page.evaluate(() => { document.querySelector('#source-wrapper').style.visibility = 'visible'; window.gpu.render(); });
-  expect(line(PNG.sync.read(await page.screenshot()), width / 2, dpr)).toBeGreaterThan(40);
+  expect(line(PNG.sync.read(await presentedFrame(page)), width / 2, dpr)).toBeGreaterThan(40);
 });
 
 
@@ -109,7 +114,7 @@ test('collapsed hosts hide the aperture and resume when shown', async ({ page })
   await page.evaluate(() => { document.querySelector('#surface').style.display = ''; window.gpu.render(); });
   await expect(page.locator('[data-crt-generated="webgl-aperture"]')).toBeVisible();
   const dpr = await page.evaluate(() => devicePixelRatio), width = page.viewportSize().width;
-  expect(line(PNG.sync.read(await page.screenshot()), width / 2, dpr)).toBeGreaterThan(40);
+  expect(line(PNG.sync.read(await presentedFrame(page)), width / 2, dpr)).toBeGreaterThan(40);
 });
 
 test('oversized source canvases fit the GPU texture limit', async ({ page }) => {
@@ -145,12 +150,53 @@ test('layout-only renders move cached pixels without uploading unchanged sources
   });
   expect(result).toEqual({ uploads:0, y:20, error:0 });
   const dpr = await page.evaluate(() => devicePixelRatio), width = page.viewportSize().width;
-  expect(line(PNG.sync.read(await page.screenshot()), width / 2, dpr)).toBeGreaterThan(75);
+  expect(line(PNG.sync.read(await presentedFrame(page)), width / 2, dpr)).toBeGreaterThan(75);
   await page.evaluate(() => {
     const source = document.querySelector('#source'), ctx = source.getContext('2d');
     ctx.fillStyle = '#f00'; ctx.fillRect(0, 60, source.width, 3); window.gpu.render();
   });
-  const updated = PNG.sync.read(await page.screenshot());
+  const updated = PNG.sync.read(await presentedFrame(page));
   const i = (Math.round(81 * dpr) * updated.width + Math.round(width / 2 * dpr)) * 4;
   expect(updated.data[i]).toBeGreaterThan(200); expect(updated.data[i + 1]).toBeLessThan(30);
+});
+
+test('one texture overlay covers opaque native panels and grain respects motion and visibility', async ({ page }) => {
+  await setup(page);
+  await page.evaluate(() => {
+    const panel = document.createElement('button'); panel.id = 'native-panel'; panel.textContent = 'Native control';
+    panel.style.cssText = 'position:absolute;left:40%;top:160px;width:120px;height:80px;background:#404040;border:0;z-index:2;color:white';
+    panel.onclick = () => panel.dataset.clicked = 'true'; document.querySelector('#surface').append(panel);
+    window.gpu.update({ grain:.5, scanlines:.4 });
+  });
+  const capture = PNG.sync.read(await presentedFrame(page));
+  const dpr = await page.evaluate(() => devicePixelRatio), x = page.viewportSize().width * .4 + 10;
+  const values = new Set();
+  for (let y = 170; y < 185; y++) for (let dx = 0; dx < 20; dx++) values.add(capture.data[(Math.round(y * dpr) * capture.width + Math.round((x + dx) * dpr)) * 4]);
+  expect(values.size).toBeGreaterThan(20);
+  await page.locator('#native-panel').click(); await expect(page.locator('#native-panel')).toHaveAttribute('data-clicked', 'true');
+  const grain = page.locator('[data-crt-grain]');
+  const position = await grain.evaluate(e => e.style.backgroundPosition);
+  await page.waitForTimeout(180); expect(await grain.evaluate(e => e.style.backgroundPosition)).not.toBe(position);
+  await page.emulateMedia({ reducedMotion:'reduce' });
+  await expect(grain).toHaveCSS('background-position', '0px 0px');
+  const frozen = await grain.evaluate(e => e.style.backgroundPosition);
+  await page.waitForTimeout(180); expect(await grain.evaluate(e => e.style.backgroundPosition)).toBe(frozen);
+  await page.emulateMedia({ reducedMotion:'no-preference' });
+  await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable:true, get:()=>true }); document.dispatchEvent(new Event('visibilitychange')); });
+  const hidden = await grain.evaluate(e => e.style.backgroundPosition);
+  await page.waitForTimeout(180); expect(await grain.evaluate(e => e.style.backgroundPosition)).toBe(hidden);
+  await page.evaluate(() => window.gpu.destroy());
+  expect(await page.locator('[data-crt-generated]').count()).toBe(0);
+});
+
+test('showcase pairs identical sources with stronger CRT examples and a working toggle', async ({ page }) => {
+  for (const example of ['analog','broadcast','arcade','terminal']) {
+    await page.goto('/demo/showcase.html?example=' + example);
+    await expect(page.locator('#screen')).toHaveAttribute('data-ready', example);
+    expect(await page.evaluate(() => document.querySelector('#before').toDataURL() === document.querySelector('#source').toDataURL())).toBe(true);
+    expect(Number(await page.locator('[data-crt-grain]').evaluate(e => e.style.opacity))).toBeGreaterThan(.04);
+    await page.locator('#enabled').uncheck();
+    await expect(page.locator('[data-crt-generated="webgl-overlay"]')).toBeHidden();
+    expect(await page.locator('#source').evaluate(e => getComputedStyle(e).opacity)).toBe('1');
+  }
 });

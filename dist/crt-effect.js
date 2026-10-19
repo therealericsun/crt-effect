@@ -1,4 +1,4 @@
-// crt-effect v1.1.2 | MIT | https://github.com/therealericsun/crt-effect
+// crt-effect v1.1.3 | MIT | https://github.com/therealericsun/crt-effect
 /** Independent cross-axis barrel sampling, in viewport CSS pixels. */
 function displacement(x, y, width, height, curvature, regions = [], padding = 6, feather = 24) {
   const u = x / width * 2 - 1, v = y / height * 2 - 1;
@@ -366,10 +366,9 @@ function fragmentSource(count) {
   uniform vec2 uSize;
   uniform vec4 uBackground;
   uniform vec2 uPixel;
-  uniform float uCurvature, uGrain, uTick, uScanlines, uSpacing, uMask, uVignette, uGlow;
+  uniform float uCurvature, uGlow;
   ${declarations}
   vec4 picture(vec2 p) { vec4 color = uBackground; ${samples} return color; }
-  float random(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   void main() {
     vec2 p = vec2(vUV.x, 1. - vUV.y);
     vec2 q = p * 2. - 1.;
@@ -382,13 +381,6 @@ function fragmentSource(count) {
       color.rgb += soft.rgb * uGlow;
       color.a = min(1., color.a + soft.a * uGlow);
     }
-    float beam = pow(.5 + .5 * cos(p.y * uSize.y / uSpacing * 6.2831853), 3.);
-    color.rgb *= 1. - uScanlines * beam;
-    float stripe = mod(floor(p.x * uSize.x), 3.);
-    vec3 phosphor = stripe < 1. ? vec3(1., .55, .55) : stripe < 2. ? vec3(.55, 1., .55) : vec3(.55, .55, 1.);
-    color.rgb *= mix(vec3(1.), phosphor, uMask);
-    color.rgb += (random(floor(p * uSize) + uTick * vec2(37., 53.)) - .5) * uGrain * color.a;
-    color.rgb *= 1. - uVignette * smoothstep(.35, 1.35, length(q));
     gl_FragColor = vec4(clamp(color.rgb, vec3(0.), vec3(color.a)), color.a);
   }`;
 }
@@ -451,11 +443,33 @@ export function createWebGLCRT(target, options = {}) {
   overlay.style.cssText = 'position:absolute;inset:0;pointer-events:none!important;z-index:8;user-select:none';
   // Native text stays sharp and selectable; inexpensive compositor layers match
   // the texture treatment on the GPU canvas without capturing/rasterizing HTML.
-  const scan = doc.createElement('div'), mask = doc.createElement('div'), shade = doc.createElement('div');
-  for (const el of [scan, mask, shade]) el.style.cssText = 'position:absolute;inset:0;pointer-events:none!important';
-  overlay.append(scan, mask, shade);
+  const scan = doc.createElement('div'), mask = doc.createElement('div'), grain = doc.createElement('div'), shade = doc.createElement('div');
+  for (const el of [scan, mask, grain, shade]) el.style.cssText = 'position:absolute;inset:0;pointer-events:none!important';
+  overlay.append(scan, mask, grain, shade);
   mask.style.background = 'repeating-linear-gradient(90deg,#f004 0px,#0f02 1px,#00f4 2px,transparent 3px)';
   shade.style.background = 'radial-gradient(ellipse at center,transparent 35%,#0005 75%,#000 100%)';
+  grain.dataset.crtGrain = '';
+  scan.dataset.crtScanlines = '';
+  grain.style.backgroundSize = '128px 128px';
+  const noiseFrames = [];
+  function paintGrain() {
+    grain.style.opacity = settings.grain;
+    if (!settings.grain) return;
+    if (!noiseFrames.length) {
+      const canvas = doc.createElement('canvas'); canvas.width = canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      for (let i = 0; i < 8; i++) {
+        const pixels = ctx.createImageData(128, 128);
+        for (let p = 0; p < pixels.data.length; p += 4) {
+          pixels.data[p] = pixels.data[p + 1] = pixels.data[p + 2] = Math.floor(Math.random() * 256);
+          pixels.data[p + 3] = 255;
+        }
+        ctx.putImageData(pixels, 0, 0); noiseFrames.push(`url("${canvas.toDataURL()}")`);
+      }
+    }
+    grain.style.backgroundImage = noiseFrames[tick % noiseFrames.length];
+    grain.style.backgroundPosition = `${tick * 37 % 128}px ${tick * 53 % 128}px`;
+  }
   function release() {
     for (const layer of layers) { if (layer.texture) gl.deleteTexture(layer.texture); layer.texture = null; layer.width = layer.height = 0; if (layer.staging) layer.staging.width = layer.staging.height = 1; layer.staging = layer.stagingContext = null; }
     if (buffer) gl.deleteBuffer(buffer);
@@ -482,7 +496,7 @@ export function createWebGLCRT(target, options = {}) {
     const position = gl.getAttribLocation(program, 'aPosition');
     gl.enableVertexAttribArray(position); gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
     uniforms = {};
-    for (const key of ['Background','Size','Pixel','Curvature','Grain','Tick','Scanlines','Spacing','Mask','Vignette','Glow']) uniforms[key] = gl.getUniformLocation(program, 'u' + key);
+    for (const key of ['Background','Size','Pixel','Curvature','Glow']) uniforms[key] = gl.getUniformLocation(program, 'u' + key);
     layers.forEach((layer, i) => {
       layer.texture = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, layer.texture);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -523,8 +537,7 @@ export function createWebGLCRT(target, options = {}) {
     const background = win.getComputedStyle(target).backgroundColor.match(/[\d.]+/g)?.map(Number) || [0, 0, 0, 0];
     gl.uniform4f(uniforms.Background, background[0] / 255, background[1] / 255, background[2] / 255, background[3] ?? 1);
     gl.uniform2f(uniforms.Size, width, height); gl.uniform2f(uniforms.Pixel, 1 / width, 1 / height);
-    for (const [key, value] of Object.entries({ Curvature: settings.curvature, Grain: settings.grain, Tick: tick,
-      Scanlines: settings.scanlines, Spacing: settings.scanlineSpacing, Mask: settings.mask, Vignette: settings.vignette, Glow: settings.glow })) gl.uniform1f(uniforms[key], value);
+    for (const [key, value] of Object.entries({ Curvature: settings.curvature, Glow: settings.glow })) gl.uniform1f(uniforms[key], value);
     layers.forEach((layer, i) => {
       const rect = layer.source.getBoundingClientRect();
       const visible = rect.width > 0 && rect.height > 0 && layer.source.width > 0 && layer.source.height > 0
@@ -549,7 +562,7 @@ export function createWebGLCRT(target, options = {}) {
         } else gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, source);
       }
     });
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.drawArrays(gl.TRIANGLES, 0, 6); gl.flush();
   }
   function schedule() {
     if (!frame && !destroyed && !doc.hidden && settings.enabled) frame = win.requestAnimationFrame(() => { frame = 0; render(); });
@@ -557,7 +570,7 @@ export function createWebGLCRT(target, options = {}) {
   function animate() {
     win.clearTimeout(timer); timer = 0;
     if (!destroyed && !lost && settings.enabled && settings.grain && !motion.matches && !doc.hidden) {
-      timer = win.setTimeout(() => { tick++; render(false); animate(); }, 1000 / settings.grainFPS);
+      timer = win.setTimeout(() => { tick++; paintGrain(); animate(); }, 1000 / settings.grainFPS);
     }
   }
   function apply() {
@@ -566,7 +579,8 @@ export function createWebGLCRT(target, options = {}) {
       output.style.display = overlay.style.display = 'block';
       if (bezel) bezel.style.display = 'block';
       scan.style.background = `repeating-linear-gradient(0deg,transparent 0px,transparent ${settings.scanlineSpacing * .45}px,#000 ${settings.scanlineSpacing * .82}px,transparent ${settings.scanlineSpacing}px)`;
-      scan.style.opacity = settings.scanlines * .5; mask.style.opacity = settings.mask * .5; shade.style.opacity = settings.vignette;
+      scan.style.opacity = settings.scanlines; mask.style.opacity = settings.mask; shade.style.opacity = settings.vignette;
+      paintGrain();
       render();
     } else { restoreSources(); output.style.display = overlay.style.display = 'none'; if (bezel) bezel.style.display = 'none'; }
     animate();
@@ -578,7 +592,7 @@ export function createWebGLCRT(target, options = {}) {
   listen(doc, 'scroll', schedule, { passive: true, capture: true });
   listen(win, 'resize', schedule, { passive: true });
   listen(doc, 'visibilitychange', () => { if (!doc.hidden) schedule(); else { win.cancelAnimationFrame(frame); frame = 0; } animate(); });
-  listen(motion, 'change', () => { tick = 0; render(false); animate(); });
+  listen(motion, 'change', () => { tick = 0; paintGrain(); animate(); });
   listen(output, 'webglcontextlost', event => {
     event.preventDefault(); lost = true; program = buffer = null; shaders = [];
     for (const layer of layers) { layer.texture = null; layer.width = layer.height = 0; } win.clearTimeout(timer); timer = 0; restoreSources(); output.style.display = overlay.style.display = 'none'; if (bezel) bezel.style.display = 'none';
@@ -598,7 +612,7 @@ export function createWebGLCRT(target, options = {}) {
     destroy() {
       if (destroyed) return;
       destroyed = true; win.cancelAnimationFrame(frame); win.clearTimeout(timer); observer.disconnect(); removers.forEach(remove => remove());
-      restoreSources(); release(); output.remove(); overlay.remove(); bezel?.remove(); output.width = output.height = 1;
+      restoreSources(); release(); noiseFrames.length = 0; output.remove(); overlay.remove(); bezel?.remove(); output.width = output.height = 1;
       gl.getExtension('WEBGL_lose_context')?.loseContext();
       instances.delete(target);
     },

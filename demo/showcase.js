@@ -2,13 +2,14 @@ import { createWebGLCRT } from '../dist/crt-effect.js';
 
 // These are example overrides, not additional library presets.
 const examples = {
-  balanced: { options: { preset:'balanced' }, draw:earthrise },
-  soft: { options: { curvature:.015,grain:.01,scanlines:.045,mask:.01,vignette:.20,glow:.035 }, draw:broadcast },
-  arcade: { options: { curvature:.065,grain:.035,scanlines:.24,scanlineSpacing:3,mask:.10,vignette:.50,glow:.16 }, draw:arcade },
-  terminal: { options: { curvature:.045,grain:.045,scanlines:.16,scanlineSpacing:3,mask:0,vignette:.48,glow:.20 }, draw:terminal },
+  analog: { options: { curvature:.09,grain:.075,scanlines:.36,scanlineSpacing:4,mask:.12,vignette:.65,glow:.18 }, draw:earthrise },
+  broadcast: { options: { curvature:.07,grain:.06,scanlines:.32,scanlineSpacing:4,mask:.15,vignette:.45,glow:.12 }, draw:broadcast },
+  arcade: { options: { curvature:.12,grain:.05,scanlines:.50,scanlineSpacing:4,mask:.20,vignette:.65,glow:.35 }, draw:arcade },
+  terminal: { options: { curvature:.085,grain:.10,scanlines:.42,scanlineSpacing:3,mask:0,vignette:.65,glow:.45 }, draw:terminal },
 };
 const screen = document.querySelector('#screen'), canvas = document.querySelector('#source');
-canvas.width = 960; canvas.height = 600;
+const before = document.querySelector('#before');
+canvas.width = before.width = 960; canvas.height = before.height = 600;
 const ctx = canvas.getContext('2d');
 const select = document.querySelector('#example'), enabled = document.querySelector('#enabled');
 const image = new Image(); image.src = './assets/earthrise.jpg';
@@ -70,7 +71,8 @@ function terminal() {
 function render() {
   effect?.destroy();
   const example=examples[select.value];ctx.clearRect(0,0,960,600);example.draw();
-  effect=createWebGLCRT(screen,{sources:[canvas],aperture:true,...example.options,enabled:enabled.checked});
+  before.getContext('2d').drawImage(canvas,0,0);
+  effect=createWebGLCRT(screen,{sources:[canvas],...example.options,enabled:enabled.checked});
   screen.setAttribute('aria-label',select.selectedOptions[0].textContent);
   document.querySelector('#settings').textContent=JSON.stringify(example.options);
   const url=new URL(location.href);url.searchParams.set('example',select.value);history.replaceState(null,'',url);
