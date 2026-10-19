@@ -187,3 +187,53 @@ test('destroy releases animation jobs, observers and listeners', async ({ page }
   expect(pending.before.listeners).toBeGreaterThan(0);
   expect(pending.after).toEqual({ timers: 0, frames: 0, observers: 0, listeners: 0 });
 });
+
+test('separate HTML surfaces share one viewport field through movement and scroll', async ({ page }) => {
+  await fixture(page);
+  await page.evaluate(() => {
+    window.crt.destroy();
+    document.body.innerHTML = `<div id="screen" style="position:fixed;left:20px;top:20px;width:300px;height:400px;background:black">
+      <div id="first" style="position:absolute;left:0;top:0;width:150px;height:400px;overflow:visible"><div style="position:absolute;top:60px;left:0;width:150px;height:3px;background:white"></div></div>
+      <div id="second" style="position:absolute;left:150px;top:0;width:150px;height:400px;overflow:visible"><div style="position:absolute;top:60px;left:0;width:150px;height:3px;background:white"></div></div><div id="thin" style="position:absolute;left:0;top:300px;width:300px;height:3px;background:white"></div></div>`;
+    window.parts = ['first', 'second', 'thin'].map(id => window.createCRT(document.getElementById(id), {
+      viewport: document.getElementById('screen'), curvature: .08, alignControls: false, protect: '',
+      grain: 0, scanlines: 0, mask: 0, vignette: 0, glow: 0,
+    }));
+  });
+  await page.waitForTimeout(100);
+  const dpr = await page.evaluate(() => devicePixelRatio), image = PNG.sync.read(await page.screenshot());
+  const center = whiteLine(image, 170, dpr), left = whiteLine(image, 45, dpr), right = whiteLine(image, 295, dpr);
+  expect(Math.abs(left - right)).toBeLessThan(2);
+  expect(left - center).toBeGreaterThan(5);
+  // A shallow footer-like surface must paint beyond its original border box.
+  const lifted = [];
+  for (let y = 305 * dpr; y < 320 * dpr; y++) {
+    const i = (Math.round(y) * image.width + Math.round(45 * dpr)) * 4;
+    if (Math.min(...image.data.subarray(i, i + 3)) > 150) lifted.push(y / dpr);
+  }
+  expect(lifted.length).toBeGreaterThan(0);
+  expect(Math.abs(whiteLine(image, 166, dpr) - whiteLine(image, 174, dpr))).toBeLessThan(2);
+  const mapBefore = await page.locator('feImage').nth(1).getAttribute('href');
+  await page.evaluate(() => { document.querySelector('#second').style.top = '30px'; window.parts[1].refresh(); });
+  expect(Number(await page.locator('feImage').nth(1).getAttribute('x'))).toBeLessThan(0);
+  expect(Number(await page.locator('feImage').nth(1).getAttribute('y'))).toBeLessThan(0);
+  expect(await page.locator('feImage').nth(1).getAttribute('href')).not.toBe(mapBefore);
+  await page.evaluate(() => { window.parts.forEach(crt => crt.destroy()); });
+  expect(await page.locator('[data-crt-generated]').count()).toBe(0);
+});
+
+test('a hidden-tab initialization prepares curvature before the first visible paint', async ({ page }) => {
+  await page.route('**/hidden-fixture', route => route.fulfill({ contentType:'text/html', body:'<!doctype html><style>body{margin:0;background:black}#surface{position:relative;width:100vw;height:400px}#line{position:absolute;top:60px;width:100%;height:3px;background:white}</style><div id="surface"><div id="line"></div></div>' }));
+  await page.goto('/hidden-fixture');
+  const initialized = await page.evaluate(async () => {
+    Object.defineProperty(document, 'hidden', { configurable:true, get:()=>true });
+    const { createCRT } = await import('/dist/crt-effect.js');
+    window.crt = createCRT(document.querySelector('#surface'), { curvature:.08, protect:'', alignControls:false, grain:0, scanlines:0, mask:0, vignette:0, glow:0 });
+    return { map:document.querySelector('feImage').getAttribute('href'), scale:Number(document.querySelector('feDisplacementMap').getAttribute('scale')) };
+  });
+  expect(initialized.map).toMatch(/^data:image\/png/); expect(initialized.scale).toBeGreaterThan(0);
+  await page.waitForTimeout(100);
+  const dpr=await page.evaluate(()=>devicePixelRatio),width=page.viewportSize().width,pixels=PNG.sync.read(await page.screenshot());
+  expect(whiteLine(pixels,width*.08,dpr)-whiteLine(pixels,width/2,dpr)).toBeGreaterThan(5);
+  await page.evaluate(()=>window.crt.destroy());
+});

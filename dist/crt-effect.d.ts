@@ -19,14 +19,37 @@ export interface CRTOptions {
   glow?: number;
   /** Additional CSS selector for undistorted interaction regions. Empty string disables custom protection. */
   protect?: string;
+  /** Shared screen geometry for several HTML surfaces. Defaults to the target bounds. */
+  viewport?: HTMLElement;
+  /** Counter-offset native controls to retain their original hit regions. Default true. */
+  alignControls?: boolean;
 }
 export interface CRTInstance {
   readonly enabled: boolean;
-  readonly options: Readonly<Required<CRTOptions>>;
+  readonly options: Readonly<Required<Omit<CRTOptions, 'viewport'>> & Pick<CRTOptions, 'viewport'>>;
   update(options?: CRTOptions): void;
   setEnabled(enabled: boolean): void;
   refresh(): void;
   destroy(): void;
 }
-export declare const balanced: Readonly<Required<CRTOptions>>;
+export declare const balanced: Readonly<Required<Omit<CRTOptions, 'viewport'>> & Pick<CRTOptions, 'viewport'>>;
 export declare function createCRT(target: HTMLElement, options?: CRTOptions): CRTInstance;
+
+
+export interface WebGLCRTOptions extends CRTOptions {
+  /** Connected canvas layers, back to front. Defaults to canvas[data-crt-source] descendants. */
+  sources?: HTMLCanvasElement[];
+  /** Shared curved screen silhouette, composited above native UI. Default false. */
+  aperture?: boolean;
+  /** Output density, capped independently by maxPixels. Defaults to device density, at most 2. */
+  pixelRatio?: number;
+  /** Maximum output pixel count. Default 3,000,000. Native HTML is never downsampled. */
+  maxPixels?: number;
+}
+export interface WebGLCRTInstance extends CRTInstance {
+  readonly renderer: 'webgl2' | 'webgl';
+  readonly contextLost: boolean;
+  /** Upload source canvases after drawing, then run the GPU postprocessing pass. */
+  render(): void;
+}
+export declare function createWebGLCRT(target: HTMLElement, options?: WebGLCRTOptions): WebGLCRTInstance;

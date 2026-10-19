@@ -5,6 +5,6 @@ const pkg = JSON.parse(await read('package.json'));
 const geometry = (await read('src/geometry.js')).replace('export function', 'function');
 const source = (await read('src/crt-effect.js')).replace("import { displacement } from './geometry.js';", geometry);
 await mkdir(new URL('dist/', root), { recursive: true });
-await writeFile(new URL('dist/crt-effect.js', root), `// crt-effect v${pkg.version} | MIT | https://github.com/therealericsun/crt-effect\n${source}`);
+await writeFile(new URL('dist/crt-effect.js', root), `// crt-effect v${pkg.version} | MIT | https://github.com/therealericsun/crt-effect\n${source}\n${await read('src/webgl.js')}`);
 await writeFile(new URL('dist/crt-effect.d.ts', root), await read('src/crt-effect.d.ts'));
 await writeFile(new URL('dist/version.json', root), JSON.stringify({ name: pkg.name, version: pkg.version, license: pkg.license, repository: pkg.repository.url }, null, 2) + '\n');
