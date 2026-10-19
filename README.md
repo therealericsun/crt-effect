@@ -2,7 +2,15 @@
 
 Dependency-free CRT effects for live HTML and canvas: curvature, grain, scanlines, phosphor masking, vignette and glow. ES modules and TypeScript declarations ship in `dist/`.
 
-![CRT effects on a live portfolio](docs/images/portfolio.jpg)
+| Balanced · Earthrise | Soft · broadcast |
+| --- | --- |
+| ![Balanced CRT on NASA Earthrise](docs/images/balanced.jpg) | ![Soft CRT on a broadcast test card](docs/images/soft.jpg) |
+| Default balanced preset | Curvature `.015`, scanlines `.045`, glow `.035` |
+| **Arcade · vector game** | **Terminal · oscilloscope** |
+| ![Arcade CRT on an original vector game scene](docs/images/arcade.jpg) | ![Green oscilloscope with CRT texture](docs/images/terminal.jpg) |
+| Curvature `.065`, scanlines `.24`, glow `.16` | Curvature `.045`, grain `.045`, glow `.20` |
+
+[Showcase](demo/showcase.html) · [full settings](demo/showcase.js). Earthrise: [NASA/Bill Anders](https://science.nasa.gov/resource/apollo-8s-iconic-earthrise/). Other scenes are original Canvas drawings.
 
 ```js
 import { createCRT, createWebGLCRT } from './dist/crt-effect.js';
@@ -53,7 +61,7 @@ Reduced motion freezes grain; hidden tabs suspend work. `destroy()` removes gene
 ```sh
 npm install
 npm run build
-npm run demo        # localhost:8788; /demo/webgl.html for GPU mode
+npm run demo        # localhost:8788; /demo/showcase.html for examples
 npm test
 npx playwright install chromium firefox webkit
 npm run test:browser

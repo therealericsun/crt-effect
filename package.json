@@ -1,6 +1,6 @@
 {
   "name": "crt-effect",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Dependency-free CRT curvature and texture for live HTML and canvas.",
   "type": "module",
   "main": "./dist/crt-effect.js",

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CRT examples</title>
+<style>
+:root{color-scheme:dark;font:14px/1.5 ui-monospace,monospace;background:#080a10;color:#d7e2e9}*{box-sizing:border-box}body{margin:0}nav{display:flex;flex-wrap:wrap;gap:18px;align-items:center;padding:18px 24px}a{color:inherit}select{font:inherit;padding:5px}#screen{position:relative;width:min(100%,960px);aspect-ratio:8/5;margin:0 auto;background:#000;isolation:isolate}canvas{position:absolute;inset:0;width:100%;height:100%}#settings{max-width:960px;margin:18px auto;padding:0 24px;overflow-wrap:anywhere}small{display:block;max-width:960px;margin:18px auto;padding:0 24px;color:#8598a6}
+</style>
+<nav><a href="./index.html">← HTML demo</a><label>Example <select id="example"><option value="balanced">Balanced · Earthrise</option><option value="soft">Soft · broadcast</option><option value="arcade">Arcade · vector game</option><option value="terminal">Terminal · oscilloscope</option></select></label><label><input id="enabled" type="checkbox" checked> CRT effect</label></nav>
+<main id="screen" role="img" aria-label="CRT example"><canvas id="source" aria-hidden="true"></canvas></main>
+<p id="settings"></p>
+<small>Earthrise: NASA/Bill Anders. Other scenes are original Canvas drawings. <a href="https://science.nasa.gov/resource/apollo-8s-iconic-earthrise/">Photo source</a>.</small>
+<script type="module" src="./showcase.js"></script>
+</html>

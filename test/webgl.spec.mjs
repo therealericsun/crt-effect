@@ -68,6 +68,7 @@ test('WebGL context loss reveals native sources and restoration resumes the filt
   test.skip(!supported, 'The driver does not expose context-loss testing.');
   await expect.poll(() => page.evaluate(() => window.gpu.contextLost)).toBe(true);
   expect(await page.locator('#source').evaluate(el => getComputedStyle(el).opacity)).toBe('1');
+  await expect(page.locator('[data-crt-generated="webgl-aperture"]')).toBeHidden();
   await page.evaluate(() => window.loss.restoreContext());
   await expect.poll(() => page.evaluate(() => window.gpu.contextLost)).toBe(false);
   expect(await page.locator('#source').evaluate(el => getComputedStyle(el).opacity)).toBe('0');
@@ -97,4 +98,32 @@ test('GPU sources follow inherited visibility without hiding the output layer', 
   expect(Math.max(...hidden.data.subarray(i, i + 3))).toBeLessThan(20);
   await page.evaluate(() => { document.querySelector('#source-wrapper').style.visibility = 'visible'; window.gpu.render(); });
   expect(line(PNG.sync.read(await page.screenshot()), width / 2, dpr)).toBeGreaterThan(40);
+});
+
+
+test('collapsed hosts hide the aperture and resume when shown', async ({ page }) => {
+  await setup(page);
+  await page.evaluate(() => { document.querySelector('#surface').style.display = 'none'; window.gpu.render(); });
+  await expect(page.locator('[data-crt-generated="webgl-aperture"]')).toBeHidden();
+  await expect(page.locator('[data-crt-generated="webgl-overlay"]')).toBeHidden();
+  await page.evaluate(() => { document.querySelector('#surface').style.display = ''; window.gpu.render(); });
+  await expect(page.locator('[data-crt-generated="webgl-aperture"]')).toBeVisible();
+  const dpr = await page.evaluate(() => devicePixelRatio), width = page.viewportSize().width;
+  expect(line(PNG.sync.read(await page.screenshot()), width / 2, dpr)).toBeGreaterThan(40);
+});
+
+test('oversized source canvases fit the GPU texture limit', async ({ page }) => {
+  await page.addInitScript(() => {
+    for (const type of [WebGLRenderingContext, WebGL2RenderingContext]) {
+      const get = type.prototype.getParameter;
+      type.prototype.getParameter = function(name) { return name === this.MAX_TEXTURE_SIZE ? 128 : get.call(this, name); };
+    }
+  });
+  await setup(page);
+  expect(await page.evaluate(() => {
+    const canvas = document.querySelector('canvas[data-crt-renderer]'), gl = canvas.getContext(window.gpu.renderer);
+    window.gpu.render(); return gl.getError();
+  })).toBe(0);
+  await page.evaluate(() => window.gpu.destroy());
+  expect(await page.locator('#source').evaluate(el => getComputedStyle(el).opacity)).toBe('1');
 });
